@@ -19,7 +19,7 @@ on:
 jobs:
   dev-on-push:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    uses: ./.github/workflows/_dbx-deploy.yml
+    uses: ./.github/workflows/_dbx-deploy-reusable.yml
     with:
       environment_name: dev
       working_directory: Azure/Databricks
@@ -28,7 +28,7 @@ jobs:
 
   manual-promote:
     if: github.event_name == 'workflow_dispatch'
-    uses: ./.github/workflows/_dbx-deploy.yml
+    uses: ./.github/workflows/_dbx-deploy-reusable.yml
     with:
       environment_name: ${{ inputs.environment_name }}
       working_directory: Azure/Databricks
