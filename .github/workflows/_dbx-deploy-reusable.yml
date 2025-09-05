@@ -54,7 +54,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: databricks/setup-cli@v0.9.0
+      - uses: databricks/setup-cli@main
       - name: Show CLI version
         run: databricks -v
       - name: Python deps for local build (if you build wheels)

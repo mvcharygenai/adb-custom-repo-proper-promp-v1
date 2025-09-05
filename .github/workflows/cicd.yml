@@ -27,7 +27,7 @@ on:
       auth_mode:
         description: "pat | oidc"
         required: false
-        default: "oidc"
+        default: "pat"
 
 jobs:
   dev-on-push:
@@ -38,7 +38,7 @@ jobs:
       working_directory: Azure/Databricks
       run_job_name: notebooks_job   # adjust to one of your defined resources
       test_notebook: Azure/Databricks/tests/smoke_test.ipynb
-      auth_mode: oidc
+      auth_mode: pat
     secrets: inherit   # uses env-scoped secrets
 
   manual-promote:
