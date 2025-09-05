@@ -5,39 +5,55 @@ on:
   workflow_call:
     inputs:
       environment_name:
+        description: "dev | test | prod"
         required: true
         type: string
       working_directory:
+        description: "Path to bundle root"
+        required: false
         default: "Azure/Databricks"
         type: string
       run_job_name:
+        description: "Optional bundle job to run post-deploy"
         required: false
         type: string
     secrets:
       DATABRICKS_TOKEN:
+        description: "PAT for the target Databricks workspace"
         required: true
 
 jobs:
   deploy:
+    name: Validate & Deploy (PAT)
     runs-on: ubuntu-latest
+    # Attach to the named GitHub Environment to pull its vars/secrets
     environment: ${{ inputs.environment_name }}
     env:
+      # PAT-only auth: host + token are enough
       DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
       DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      # selects the target in your databricks.yml
       DATABRICKS_BUNDLE_ENV: ${{ inputs.environment_name }}
 
     steps:
       - uses: actions/checkout@v4
       - uses: databricks/setup-cli@main
-      - name: Show CLI version
-        run: databricks -v
+
+      # Optional but very useful while wiring up
+      - name: Show CLI version & auth
+        run: |
+          databricks -v
+          databricks auth describe || true
+
       - name: Validate bundle
         working-directory: ${{ inputs.working_directory }}
         run: databricks bundle validate
+
       - name: Deploy bundle
         working-directory: ${{ inputs.working_directory }}
         run: databricks bundle deploy --auto-approve
-      - name: Run job (optional)
+
+      - name: Run post-deploy job (optional)
         if: ${{ inputs.run_job_name }}
         working-directory: ${{ inputs.working_directory }}
         run: databricks bundle run "${{ inputs.run_job_name }}" --refresh-all
