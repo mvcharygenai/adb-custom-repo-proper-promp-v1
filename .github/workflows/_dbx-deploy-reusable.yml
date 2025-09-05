@@ -1,124 +1,43 @@
-# .github/workflows/_dbx-deploy-reusable.yml
-name: Reusable - Databricks Bundle Deploy
+# .github/workflows/_dbx-deploy.yml
+name: Reusable - Databricks Deploy (PAT)
 
 on:
   workflow_call:
     inputs:
       environment_name:
-        description: "Target environment (dev|test|prod)"
         required: true
         type: string
       working_directory:
-        description: "Path to bundle root"
-        required: false
         default: "Azure/Databricks"
         type: string
       run_job_name:
-        description: "Optional: bundle job name to run post-deploy (e.g., notebooks_job)"
         required: false
-        type: string
-      test_notebook:
-        description: "Optional: workspace-relative or bundle-relative notebook path to run as smoke-test"
-        required: false
-        type: string
-      auth_mode:
-        description: "Authentication: pat | oidc"
-        required: false
-        default: "pat"
         type: string
     secrets:
       DATABRICKS_TOKEN:
-        required: false
-      DATABRICKS_CLIENT_ID:
-        required: false
+        required: true
 
 jobs:
-  validate:
-    name: Validate bundle
+  deploy:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment_name }}
-    # Required when using OIDC
-    permissions:
-      id-token: write
-      contents: read
     env:
-      # Pull workspace host from the GitHub Environment (recommended for portability)
       DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
-      # Select bundle target via env var as per docs
-      # (you can also pass --target/-t on the CLI)
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
       DATABRICKS_BUNDLE_ENV: ${{ inputs.environment_name }}
-      # Choose auth
-      DATABRICKS_AUTH_TYPE: ${{ inputs.auth_mode == 'oidc' && 'github-oidc' || '' }}
-      DATABRICKS_CLIENT_ID: ${{ inputs.auth_mode == 'oidc' && secrets.DATABRICKS_CLIENT_ID || '' }}
-      DATABRICKS_TOKEN: ${{ inputs.auth_mode == 'pat' && secrets.DATABRICKS_TOKEN || '' }}
 
     steps:
       - uses: actions/checkout@v4
       - uses: databricks/setup-cli@main
       - name: Show CLI version
         run: databricks -v
-      - name: Python deps for local build (if you build wheels)
-        working-directory: ${{ inputs.working_directory }}
-        run: python -m pip install -U pip build
       - name: Validate bundle
         working-directory: ${{ inputs.working_directory }}
         run: databricks bundle validate
-
-  deploy:
-    name: Deploy bundle
-    runs-on: ubuntu-latest
-    needs: validate
-    environment: ${{ inputs.environment_name }}
-    permissions:
-      id-token: write
-      contents: read
-    env:
-      DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
-      DATABRICKS_BUNDLE_ENV: ${{ inputs.environment_name }}
-      DATABRICKS_AUTH_TYPE: ${{ inputs.auth_mode == 'oidc' && 'github-oidc' || '' }}
-      DATABRICKS_CLIENT_ID: ${{ inputs.auth_mode == 'oidc' && secrets.DATABRICKS_CLIENT_ID || '' }}
-      DATABRICKS_TOKEN: ${{ inputs.auth_mode == 'pat' && secrets.DATABRICKS_TOKEN || '' }}
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: databricks/setup-cli@v0.9.0
-      - name: Deploy
+      - name: Deploy bundle
         working-directory: ${{ inputs.working_directory }}
         run: databricks bundle deploy --auto-approve
-
-  smoke-tests:
-    name: Post-deploy smoke tests
-    runs-on: ubuntu-latest
-    needs: deploy
-    if: ${{ inputs.run_job_name || inputs.test_notebook }}
-    environment: ${{ inputs.environment_name }}
-    permissions:
-      id-token: write
-      contents: read
-    env:
-      DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
-      DATABRICKS_BUNDLE_ENV: ${{ inputs.environment_name }}
-      DATABRICKS_AUTH_TYPE: ${{ inputs.auth_mode == 'oidc' && 'github-oidc' || '' }}
-      DATABRICKS_CLIENT_ID: ${{ inputs.auth_mode == 'oidc' && secrets.DATABRICKS_CLIENT_ID || '' }}
-      DATABRICKS_TOKEN: ${{ inputs.auth_mode == 'pat' && secrets.DATABRICKS_TOKEN || '' }}
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: databricks/setup-cli@v0.9.0
-
-      # Option A: run a specific bundle job (preferred if you defined jobs in databricks.yml)
-      - name: Run bundle job
+      - name: Run job (optional)
         if: ${{ inputs.run_job_name }}
         working-directory: ${{ inputs.working_directory }}
         run: databricks bundle run "${{ inputs.run_job_name }}" --refresh-all
-
-      # Option B: execute a notebook (uses Databricks-maintained action)
-      - name: Run smoke test notebook
-        if: ${{ inputs.test_notebook }}
-        uses: databricks/run-notebook@v0.0.3
-        with:
-          databricks-host: ${{ env.DATABRICKS_HOST }}
-          # For OIDC, the action reads OIDC automatically when DATABRICKS_AUTH_TYPE=github-oidc is present;
-          # for PAT, pass a token
-          databricks-token: ${{ inputs.auth_mode == 'pat' && env.DATABRICKS_TOKEN || '' }}
-          notebook-path: ${{ inputs.test_notebook }}
