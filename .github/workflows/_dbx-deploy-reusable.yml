@@ -24,6 +24,7 @@ on:
 
 jobs:
   deploy:
+    environment: ${{ inputs.environment_name }}   # dev|test|prod
     name: Validate & Deploy (PAT)
     runs-on: ubuntu-latest
     # Attach to the named GitHub Environment to pull its vars/secrets
