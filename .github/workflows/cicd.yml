@@ -36,8 +36,8 @@ jobs:
     with:
       environment_name: dev
       working_directory: Azure/Databricks
-      run_job_name: notebooks_job   # adjust to one of your defined resources
-      test_notebook: Azure/Databricks/tests/smoke_test.ipynb
+      # run_job_name: notebooks_job   # adjust to one of your defined resources
+      # test_notebook: Azure/Databricks/tests/smoke_test.ipynb
       auth_mode: pat
     secrets: inherit   # uses env-scoped secrets
 
