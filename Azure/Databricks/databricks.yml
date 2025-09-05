@@ -1,0 +1,52 @@
+# Azure/Databricks/databricks.yml
+bundle:
+  name: azure-dbx-bundle
+  # Ensures modern CLI where bundle commands exist
+  databricks_cli_version: ">=0.205.0"  # adjust as needed
+  # You can add variables and reuse as ${var.name} if desired
+
+targets:
+  dev:
+    default: true
+  test: {}
+  prod: {}
+
+# Build a wheel from ./src (optional but recommended for Python code)
+artifacts:
+  project_wheel:
+    type: whl
+    path: ./src
+    build: "python -m pip install -U build && python -m build"  # produces dist/*.whl
+    # See bundle examples for wheels & libraries patterns
+    # https://learn.microsoft.com/azure/databricks/dev-tools/bundles/examples
+    # (referenced in text above)
+
+resources:
+  jobs:
+    notebooks_job:
+      name: ${bundle.name}-${bundle.target}-notebooks
+      # For basic notebook tasks, you can omit cluster to let serverless run it when available.
+      # See examples for serverless notebook jobs.
+      # https://learn.microsoft.com/azure/databricks/dev-tools/bundles/examples
+      tasks:
+        - task_key: run_ingest
+          notebook_task:
+            notebook_path: ./notebooks/01_ingest.py
+
+    python_job:
+      name: ${bundle.name}-${bundle.target}-python
+      tasks:
+        - task_key: run_main
+          spark_python_task:
+            python_file: ./src/main.py
+          # For wheels built above (uploaded alongside job), attach the wheel libraries with a relative pattern:
+          libraries:
+            - whl: ./dist/*.whl
+          # Minimal single-node cluster example; tune runtime & node type for your workspace.
+          new_cluster:
+            spark_version: "14.3.x-scala2.12"  # adjust to your workspace runtime
+            num_workers: 0
+            spark_conf:
+              spark.databricks.cluster.profile: singleNode
+            custom_tags:
+              ResourceClass: SingleNode

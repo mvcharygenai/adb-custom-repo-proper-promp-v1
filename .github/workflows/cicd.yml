@@ -1,0 +1,47 @@
+# .github/workflows/cicd.yml
+name: Databricks CI/CD (Dev/Test/Prod)
+
+on:
+  push:
+    branches: [ "main" ]   # auto promote to dev
+  workflow_dispatch:
+    inputs:
+      environment_name:
+        description: "dev | test | prod"
+        required: true
+        default: "test"
+        type: choice
+        options: [ "dev", "test", "prod" ]
+      run_job_name:
+        description: "Optional: bundle job to run after deploy"
+        required: false
+      test_notebook:
+        description: "Optional: notebook path for smoke test"
+        required: false
+      auth_mode:
+        description: "pat | oidc"
+        required: false
+        default: "oidc"
+
+jobs:
+  dev-on-push:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/_dbx-deploy-reusable.yml
+    with:
+      environment_name: dev
+      working_directory: Azure/Databricks
+      run_job_name: notebooks_job   # adjust to one of your defined resources
+      test_notebook: Azure/Databricks/tests/smoke_test.ipynb
+      auth_mode: oidc
+    secrets: inherit   # uses env-scoped secrets
+
+  manual-promote:
+    if: github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/_dbx-deploy-reusable.yml
+    with:
+      environment_name: ${{ inputs.environment_name }}
+      working_directory: Azure/Databricks
+      run_job_name: ${{ inputs.run_job_name }}
+      test_notebook: ${{ inputs.test_notebook }}
+      auth_mode: ${{ inputs.auth_mode }}
+    secrets: inherit
