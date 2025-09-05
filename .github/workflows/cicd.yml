@@ -1,6 +1,12 @@
 # .github/workflows/cicd.yml
 name: Databricks CI/CD (Dev/Test/Prod)
 
+
+permissions:
+  id-token: write
+  contents: read
+
+
 on:
   push:
     branches: [ "main" ]   # auto promote to dev
